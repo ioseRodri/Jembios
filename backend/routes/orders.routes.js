@@ -2,6 +2,7 @@ const { Router } = require('express');
 const db = require('../db/connect');
 const router = Router();
 
+
 /**
  * Helpers simples:
  */
@@ -9,20 +10,20 @@ function getCouponIfValid(code, amount) {
   return new Promise((resolve, reject) => {
     if (!code) return resolve(null);
     db.get(
-      `SELECT code, discount_type AS type, value, expires_at, min_amount
+      `SELECT code, discount_type, value, expires_at, min_amount
        FROM coupons WHERE code = ?`,
       [code],
       (err, row) => {
         if (err) return reject(err);
         if (!row) return resolve(null);
 
-        // validar expiración
+        
         if (row.expires_at) {
           const now = new Date();
           const exp = new Date(row.expires_at);
           if (isNaN(exp.getTime()) || now > exp) return resolve(null);
         }
-        // mínimo
+        
         if (amount < row.min_amount) return resolve(null);
 
         resolve(row);
@@ -107,7 +108,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'name y district son obligatorios' });
     }
 
-    // 1) Traer productos y validar
+    
     const ids = items.map(i => i.productId);
     const prods = await getProductsByIds(ids);
     const byId = new Map(prods.map(p => [p.id, p]));
@@ -122,10 +123,10 @@ router.post('/', async (req, res) => {
       if (Number(it.qty) <= 0) {
         return res.status(400).json({ error: `Cantidad inválida para ${p.id}` });
       }
-      // No descontamos stock aquí; se descuenta al pagar con éxito.
+      
     }
 
-    // 2) Calcular subtotal
+    
     let subtotal = 0;
     const itemsWithPrice = items.map(it => {
       const p = byId.get(it.productId);
@@ -135,7 +136,7 @@ router.post('/', async (req, res) => {
       return { ...it, unit_price: unit };
     });
 
-    // 3) Cupón (opcional)
+    
     let discount_total = 0;
     let appliedCoupon = null;
     if (couponCode) {
@@ -149,14 +150,14 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 4) Envío
+    
     const shipping = await quoteShipping(district, items);
     const shipping_cost = shipping.cost;
 
-    // 5) Totales
+    
     const total_amount = Number((subtotal - discount_total + shipping_cost).toFixed(2));
 
-    // 6) Insert en transacción
+    
     await new Promise((resolve, reject) => db.run('BEGIN', (err) => (err ? reject(err) : resolve())));
 
     const orderId = await new Promise((resolve, reject) => {
@@ -192,7 +193,7 @@ router.post('/', async (req, res) => {
 
     await new Promise((resolve, reject) => db.run('COMMIT', (err) => (err ? reject(err) : resolve())));
 
-    // 7) Respuesta
+    
     res.status(201).json({
       id: orderId,
       status: 'awaiting_payment',
@@ -203,11 +204,36 @@ router.post('/', async (req, res) => {
       coupon: appliedCoupon || null
     });
   } catch (err) {
-    // rollback por seguridad
+    
     try { await new Promise((resolve) => db.run('ROLLBACK', () => resolve())); } catch { }
     res.status(500).json({ error: err.message });
   }
 });
+
+/**
+ * GET /api/orders
+ * Query: status=activas -> devuelve órdenes listas para operar en almacén (paid|processing)
+ */
+router.get('/', (req, res) => {
+  const { status } = req.query;
+  let sql = `SELECT id, status, created_at, customer_name AS name FROM orders ORDER BY id DESC LIMIT 50`;
+  const params = [];
+
+  if (status === 'activas') {
+    sql = `SELECT id, status, created_at, customer_name AS name
+           FROM orders
+           WHERE status IN ('paid','processing')
+           ORDER BY id DESC
+           LIMIT 50`;
+  }
+
+  db.all(sql, params, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+
 
 /**
  * GET /api/orders/:id
@@ -236,6 +262,7 @@ router.get('/:id', (req, res) => {
 });
 
 
+
 /**
  * POST /api/orders/:id/pay
  * Body: { method: 'mock' | 'card' | 'paypal' | 'yape', result: 'success' | 'failed' }
@@ -245,14 +272,14 @@ router.get('/:id', (req, res) => {
  */
 router.post('/:id/pay', async (req, res) => {
   const orderId = Number(req.params.id);
-  const { method = 'mock', result = 'success' } = req.body || {};
+  const { method = 'mock', result = 'success', userId = 1 } = req.body || {}; 
   if (!orderId) return res.status(400).json({ error: 'id inválido' });
   if (!['success', 'failed'].includes(result)) {
     return res.status(400).json({ error: "result debe ser 'success' o 'failed'" });
   }
 
   try {
-    // Trae orden
+    
     const order = await new Promise((resolve, reject) => {
       db.get(`SELECT * FROM orders WHERE id = ?`, [orderId], (err, row) =>
         err ? reject(err) : resolve(row)
@@ -263,10 +290,10 @@ router.post('/:id/pay', async (req, res) => {
       return res.status(400).json({ error: `Estado inválido: ${order.status}` });
     }
 
-    // Trae items
+    
     const items = await new Promise((resolve, reject) => {
       db.all(
-        `SELECT oi.product_id, oi.qty, p.stock, p.active
+        `SELECT oi.product_id, oi.qty, oi.unit_price, p.stock, p.active, p.name
          FROM order_items oi
          JOIN products p ON p.id = oi.product_id
          WHERE oi.order_id = ?`,
@@ -275,40 +302,37 @@ router.post('/:id/pay', async (req, res) => {
       );
     });
 
-    // Inserta pago (pending -> success/failed)
+    
     await new Promise((resolve, reject) => db.run('BEGIN', (err) => (err ? reject(err) : resolve())));
 
+    
     const paymentId = await new Promise((resolve, reject) => {
       db.run(
         `INSERT INTO payments (order_id, method, status, amount)
          VALUES (?, ?, ?, ?)`,
         [orderId, method, result === 'success' ? 'success' : 'failed', order.total_amount],
-        function (err) {
-          if (err) return reject(err);
-          resolve(this.lastID);
-        }
+        function (err) { if (err) return reject(err); resolve(this.lastID); }
       );
     });
 
     if (result === 'failed') {
-      // Solo confirmamos transacción y salimos
       await new Promise((resolve, reject) => db.run('COMMIT', (err) => (err ? reject(err) : resolve())));
       return res.json({ orderId, paymentId, status: 'payment_failed' });
     }
 
-    // Verifica stock y descuenta
+    
     for (const it of items) {
       if (!it.active) {
-        await new Promise((resolve, reject) => db.run('ROLLBACK', (/* _ */) => resolve()));
+        await new Promise((resolve) => db.run('ROLLBACK', () => resolve()));
         return res.status(400).json({ error: `Producto ${it.product_id} inactivo` });
       }
       if (it.stock < it.qty) {
-        await new Promise((resolve, reject) => db.run('ROLLBACK', (/* _ */) => resolve()));
+        await new Promise((resolve) => db.run('ROLLBACK', () => resolve()));
         return res.status(400).json({ error: `Stock insuficiente para ${it.product_id}` });
       }
     }
 
-    // Descuenta stock
+    
     for (const it of items) {
       await new Promise((resolve, reject) => {
         db.run(
@@ -319,38 +343,63 @@ router.post('/:id/pay', async (req, res) => {
       });
     }
 
-    // Cambia estado de la orden a 'paid'
+    
     await new Promise((resolve, reject) => {
+      db.run(`UPDATE orders SET status = 'paid' WHERE id = ?`, [orderId], (err) => (err ? reject(err) : resolve()));
+    });
+
+    
+    const invoiceId = await new Promise((resolve, reject) => {
       db.run(
-        `UPDATE orders SET status = 'paid' WHERE id = ?`,
-        [orderId],
-        (err) => (err ? reject(err) : resolve())
+        `INSERT INTO invoices (user_id, order_id, total_amount, status)
+         VALUES (?, ?, ?, 'paid')`,
+        [userId, orderId, order.total_amount],
+        function (err) { if (err) return reject(err); resolve(this.lastID); }
       );
     });
 
-    // Buscar primer empleado activo para asignar (simple)
+    
+for (const it of items) {
+  await new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO invoice_items (invoice_id, product_id, product_name, unit_price, quantity)
+       VALUES (?, ?, ?, ?, ?)`,
+      [invoiceId, it.product_id, it.name, it.unit_price, it.qty],
+      (err) => (err ? reject(err) : resolve())
+    );
+  });
+}
+
+
+
+    
     const assignee = await new Promise((resolve, reject) => {
       db.get(`SELECT id FROM employees WHERE active = 1 ORDER BY id ASC LIMIT 1`, [], (err, row) =>
         err ? reject(err) : resolve(row)
       );
     });
-
-    // Crear tarea de picking para esta orden
     await new Promise((resolve, reject) => {
       db.run(
-        `INSERT INTO tasks (order_id, assignee_id, type, status)
-     VALUES (?, ?, 'picking', 'pending')`,
+        `INSERT INTO tasks (order_id, assignee_id, type, status) VALUES (?, ?, 'picking', 'pending')`,
         [orderId, assignee ? assignee.id : null],
         (err) => (err ? reject(err) : resolve())
       );
     });
 
-
     await new Promise((resolve, reject) => db.run('COMMIT', (err) => (err ? reject(err) : resolve())));
 
-    res.json({ orderId, paymentId, status: 'paid' });
+    res.json({
+  orderId,               
+  paymentId,              
+  invoiceId,              
+  status: 'paid',        
+  invoicePdf: `/facturas/invoice_${invoiceId}.pdf`  
+});
+
+
+
   } catch (err) {
-    try { await new Promise((resolve) => db.run('ROLLBACK', () => resolve())); } catch { }
+    try { await new Promise((resolve) => db.run('ROLLBACK', () => resolve())); } catch {}
     res.status(500).json({ error: err.message });
   }
 });

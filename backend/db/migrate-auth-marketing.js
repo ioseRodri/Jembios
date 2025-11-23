@@ -1,4 +1,4 @@
-// backend/db/migrate-auth-marketing.js
+
 const fs = require('fs');
 const path = require('path');
 const db = require('./connect');

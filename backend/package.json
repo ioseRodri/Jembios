@@ -12,20 +12,26 @@
     "migrate:deliveries": "node db/migrate-run-4.js",
     "migrate:complaints": "node db/migrate-run-5.js",
     "migrate:orders:location": "node db/migrate-run-6.js",
-    "migrate:authmkt": "node db/migrate-auth-marketing.js"
+    "migrate:authmkt": "node db/migrate-auth-marketing.js",
+    "migrate:products:description": "node db/migrate_007_products_description.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "all": "^0.0.0",
     "bcrypt": "^6.0.0",
+    "body-parser": "^2.2.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "geolib": "^3.3.4",
     "multer": "^2.0.2",
+    "pdfkit": "^0.17.2",
     "serve-index": "^1.9.1",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "stripe": "^19.3.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

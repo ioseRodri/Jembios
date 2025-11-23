@@ -66,7 +66,7 @@ router.patch('/:id', async (req, res) => {
   }
 
   try {
-    // Trae reclamo
+    
     const complaint = await new Promise((resolve, reject) => {
       db.get(`SELECT id, order_id, status FROM complaints WHERE id = ?`, [id], (err, row) =>
         err ? reject(err) : resolve(row)
@@ -76,16 +76,16 @@ router.patch('/:id', async (req, res) => {
 
     await new Promise((resolve, reject) => db.run('BEGIN', (err) => (err ? reject(err) : resolve())));
 
-    // Actualiza estado del reclamo
+    
     await new Promise((resolve, reject) => {
       db.run(`UPDATE complaints SET status = ? WHERE id = ?`, [status, id], (err) =>
         err ? reject(err) : resolve()
       );
     });
 
-    // (Opcional) Simular reembolso si resolved:
+    
     if (status === 'resolved') {
-      // setear pago más reciente a refunded, si existe
+      
       const lastPayment = await new Promise((resolve, reject) => {
         db.get(
           `SELECT id FROM payments WHERE order_id = ? ORDER BY id DESC LIMIT 1`,
@@ -100,7 +100,7 @@ router.patch('/:id', async (req, res) => {
           );
         });
       }
-      // podrías ajustar stock aquí si devuelven el producto (omito en demo)
+      
     }
 
     await new Promise((resolve, reject) => db.run('COMMIT', (err) => (err ? reject(err) : resolve())));

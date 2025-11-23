@@ -1,26 +1,28 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../store/cart.jsx';
 import { apiCreateOrder } from '../services/api';
-import { useState } from 'react';
+import { useUser } from '../store/user.jsx'; 
+import { useState, useEffect } from 'react';
 import './Checkout.css';
-
-
 
 export default function CheckoutPage() {
   const nav = useNavigate();
   const { state } = useLocation() || {};
   const { items, clear } = useCart();
+  const { usuario, login } = useUser();
+
 
   const [form, setForm] = useState({
-    name: '',
-    docType: 'DNI',
-    doc: '',
-    email: '',
-    phone: '',
-    address: '',
-    district: state?.district || 'Lima Centro',
-    city: 'Lima',
+    name: usuario?.nombre || '',
+    docType: usuario?.docType || 'DNI',
+    doc: usuario?.doc || '',
+    email: usuario?.correo || '',
+    phone: usuario?.telefono || '',
+    address: usuario?.direccion || '',
+    district: state?.district || usuario?.district || 'Lima Centro',
+    city: usuario?.city || 'Lima',
   });
+
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -37,16 +39,33 @@ export default function CheckoutPage() {
     setErr('');
     setLoading(true);
     try {
-      const payload = {
-        customer: {
-          ...form,
-          // 👇 toma la ubicación que llegó desde el Cart
-          location: state?.location || null,
-        },
-        items: items.map(it => ({ productId: it.product.id, qty: it.qty })),
-        // couponCode: state?.coupon?.code (si luego lo usas)
-      };
+      const totalFront = items.reduce((a, it) => a + it.product.price * it.qty, 0);
+
+const payload = {
+  customer: { ...form, location: state?.location || null },
+  total_amount: totalFront,       
+  items: items.map(it => ({
+    productId: it.product.id,
+    qty: it.qty,
+    unit_price: it.product.price  
+  })),
+};
+
       const res = await apiCreateOrder(payload);
+
+      
+      if (usuario) {
+        login({
+          ...usuario,
+          nombre: form.name,
+          correo: form.email,
+          telefono: form.phone,
+          direccion: form.address,
+          district: form.district,
+          city: form.city,
+        });
+      }
+
       clear();
       nav(`/order/${res.id}`);
     } catch (e) {
@@ -56,38 +75,67 @@ export default function CheckoutPage() {
     }
   }
 
-
   return (
     <div className="checkout-container">
       <h2>Checkout</h2>
 
       <div className="checkout-grid">
-        {/* Columna izquierda: FORMULARIO */}
         <div className="checkout-form">
           <h3>Datos del cliente</h3>
 
-          <input placeholder="Nombre completo" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-          <select value={form.docType} onChange={e => setForm({ ...form, docType: e.target.value })}>
+          <input
+            placeholder="Nombre completo"
+            value={form.name}
+            onChange={e => setForm({ ...form, name: e.target.value })}
+          />
+          <select
+            value={form.docType}
+            onChange={e => setForm({ ...form, docType: e.target.value })}
+          >
             <option value="DNI">DNI</option>
             <option value="RUC">RUC</option>
           </select>
-          <input placeholder="Documento" value={form.doc} onChange={e => setForm({ ...form, doc: e.target.value })} />
-          <input placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-          <input placeholder="Teléfono" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
-          <input placeholder="Dirección (referencia)" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
-          {/* Fallback si quieres mantenerlos visibles */}
-          <input placeholder="Distrito" value={form.district} onChange={e => setForm({ ...form, district: e.target.value })} />
-          <input placeholder="Ciudad" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} />
+          <input
+            placeholder="Documento"
+            value={form.doc}
+            onChange={e => setForm({ ...form, doc: e.target.value })}
+          />
+          <input
+            placeholder="Email"
+            value={form.email}
+            onChange={e => setForm({ ...form, email: e.target.value })}
+          />
+          <input
+            placeholder="Teléfono"
+            value={form.phone}
+            onChange={e => setForm({ ...form, phone: e.target.value })}
+          />
+          <input
+            placeholder="Dirección (referencia)"
+            value={form.address}
+            onChange={e => setForm({ ...form, address: e.target.value })}
+          />
+          <input
+            placeholder="Distrito"
+            value={form.district}
+            onChange={e => setForm({ ...form, district: e.target.value })}
+          />
+          <input
+            placeholder="Ciudad"
+            value={form.city}
+            onChange={e => setForm({ ...form, city: e.target.value })}
+          />
+
           {err && <div className="error">{err}</div>}
+
           {state?.location && (
             <div style={{ fontSize: 13, color: '#555' }}>
-              Ubicación seleccionada: <b>{state.location.latitude.toFixed(5)}</b>, <b>{state.location.longitude.toFixed(5)}</b>
+              Ubicación seleccionada: <b>{state.location.latitude.toFixed(5)}</b>,{' '}
+              <b>{state.location.longitude.toFixed(5)}</b>
             </div>
           )}
-
         </div>
 
-        {/* Columna derecha: RESUMEN */}
         <div className="checkout-summary">
           <h3>Resumen</h3>
           <ul>
@@ -113,6 +161,4 @@ export default function CheckoutPage() {
       </div>
     </div>
   );
-
-
 }

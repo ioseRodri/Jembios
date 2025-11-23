@@ -12,18 +12,18 @@ async function req(path, options = {}) {
   return res.json();
 }
 
-// Products
+
 export const apiGetProducts = () => req('/products');
 
-// Shipping
+
 export const apiQuoteShipping = (payload) =>
   req('/shipping/quote', { method: 'POST', body: JSON.stringify(payload) });
 
-// Coupons
+
 export const apiValidateCoupon = (payload) =>
   req('/coupons/validate', { method: 'POST', body: JSON.stringify(payload) });
 
-// Orders
+
 export const apiCreateOrder = (payload) =>
   req('/orders', { method: 'POST', body: JSON.stringify(payload) });
 

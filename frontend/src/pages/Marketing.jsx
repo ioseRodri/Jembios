@@ -32,17 +32,76 @@ export default function Marketing() {
     setFormData({ ...formData, [name]: value });
   };
 
+
+
+
+
+
+
+  const handleAutoFillDescription = async () => {
+  const productName = formData.nombre;
+  if (!productName) {
+    setStatus("❌ Debes ingresar el nombre del producto.");
+    return;
+  }
+
+  setStatus("Generando descripción...");
+
+  try {
+    const response = await fetch("http://localhost:11434/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gemma3:1b",  
+        prompt: `Genera una descripción tecnica , corta y clara en español para un producto llamado "${productName}", destacando sus beneficios principales y características clave.`,
+        stream: false,  
+        format: "json",  
+      })
+    });
+
+    const data = await response.json();
+    console.log("Respuesta de la API:", data); 
+
+    const responseObject = JSON.parse(data.response);
+
+    const generatedDesc = responseObject[Object.keys(responseObject)[0]] || "Descripción no disponible."; 
+
+    setFormData({ ...formData, descripcion: generatedDesc });
+    setStatus(""); 
+  } catch (err) {
+    setStatus("❌ Error al generar la descripción: " + err.message);
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const form = new FormData();
     form.append("nombre", formData.nombre);
     if (formData.principioActivo) form.append("principioActivo", formData.principioActivo);
-    if (formData.descripcion)     form.append("descripcion", formData.descripcion);
-    if (formData.sku)             form.append("sku", formData.sku);
+    if (formData.descripcion) form.append("descripcion", formData.descripcion);
+    if (formData.sku) form.append("sku", formData.sku);
     form.append("precio", formData.precio);
     form.append("categoria", formData.categoria);
-    if (formData.imagenes)     form.append("imagenes", formData.imagenes);
+    if (formData.imagenes) form.append("imagenes", formData.imagenes);
     if (formData.certificados) form.append("certificados", formData.certificados);
 
     try {
@@ -93,7 +152,7 @@ export default function Marketing() {
           <>
             <h1 className="mkt-title">Panel de Marketing</h1>
             <div className="mkt-card">
-              <p style={{ color:"#4b5563", lineHeight:1.6 }}>
+              <p style={{ color: "#4b5563", lineHeight: 1.6 }}>
                 Gestiona altas de producto con sus imágenes y certificados. Los envíos pasan
                 al área de Administración para aprobación.
               </p>
@@ -120,6 +179,13 @@ export default function Marketing() {
                   <label className="mkt-label">Descripción técnica</label>
                   <textarea className="mkt-textarea" name="descripcion" value={formData.descripcion} onChange={handleChange} />
                 </div>
+
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <button type="button" onClick={handleAutoFillDescription} className="mkt-submit">
+                    Llenado automático con IA
+                  </button>
+                </div>
+
 
                 <div>
                   <label className="mkt-label">Código SKU / interno</label>

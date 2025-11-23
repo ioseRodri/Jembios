@@ -1,13 +1,13 @@
-// backend/routes/auth.routes.js
+
 const { Router } = require('express');
-const bcrypt = require('bcrypt');        // si hay problemas: usar 'bcryptjs'
+const bcrypt = require('bcrypt');        
 const db = require('../db/connect');
 
 const router = Router();
 
 /**
  * POST /api/auth/register
- * Body: { nombre, correo, password, rol? }  // rol por defecto 'Cliente'
+ * Body: { nombre, correo, password, rol? }  
  */
 router.post('/register', async (req, res) => {
   try {
@@ -18,12 +18,12 @@ router.post('/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
 
-    // Obtener id_rol
+    
     db.get('SELECT id_rol FROM roles WHERE nombre_rol = ?', [rol], (err, role) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!role) return res.status(400).json({ error: 'Rol inválido' });
 
-      // Insertar usuario
+      
       const sql = `
         INSERT INTO usuarios(nombre, correo, telefono, password, id_rol, estado)
         VALUES (?, ?, ?, ?, ?, 'activo')
@@ -67,7 +67,7 @@ router.post('/login', (req, res) => {
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    // Igual que el frontend del compañero: usamos localStorage (no token)
+    
     res.json({
       ok: true,
       usuario: { id: user.id_usuario, nombre: user.nombre, rol: user.rol }

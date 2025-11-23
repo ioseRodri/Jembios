@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom'; // 👈 agrega useNavigate
-import { apiGetOrder, apiCreateComplaint } from '../services/api'; // 👈 importa complaints
+import { useParams, Link, useNavigate } from 'react-router-dom'; 
+import { apiGetOrder, apiCreateComplaint } from '../services/api'; 
 import './Tracking.css';
 
-// Leaflet ...
+
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
 import L from 'leaflet';
@@ -11,7 +11,7 @@ import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 const Icon = L.icon({ iconUrl, shadowUrl: iconShadow, iconAnchor: [12, 41] });
 
-// 👇 NUEVO: icono distinto para el paquete (emoji 📦)
+
 const PackageIcon = L.divIcon({
     className: 'pkg-icon',
     html: '📦',
@@ -19,9 +19,9 @@ const PackageIcon = L.divIcon({
     iconAnchor: [12, 12],
 });
 
-const ORIGIN = [-11.9523, -77.0394];// Jembios Carabayllo aprox
+const ORIGIN = [-11.9523, -77.0394];
 
-// utilidad para interpolar puntos
+
 function lerp(a, b, t) { return a + (b - a) * t; }
 
 export default function TrackingPage() {
@@ -31,7 +31,7 @@ export default function TrackingPage() {
     const [err, setErr] = useState('');
     const [loading, setLoading] = useState(true);
 
-    // animación
+    
     const [pos, setPos] = useState(ORIGIN);
     const [running, setRunning] = useState(false);
     const tRef = useRef(0);
@@ -69,7 +69,7 @@ export default function TrackingPage() {
         setPos(ORIGIN);
         if (hRef.current) clearInterval(hRef.current);
 
-        // 20s / 50ms ≈ 400 pasos → incremento 1/400 = 0.0025
+        
         hRef.current = setInterval(() => {
             tRef.current += 0.0025;
             const t = Math.min(1, tRef.current);
@@ -80,7 +80,7 @@ export default function TrackingPage() {
             if (t >= 1) {
                 clearInterval(hRef.current);
                 setRunning(false);
-                // 👇 preguntar conformidad al llegar
+                
                 setAskConfirm(true);
             }
         }, 50);
@@ -94,19 +94,19 @@ export default function TrackingPage() {
     }
 
     function finishAndGoHome() {
-        // limpiar botón de Seguimiento en el header
+        
         localStorage.removeItem('trackOrderId');
         nav('/');
     }
 
     async function confirmYes() {
-        // Conforme → finalizar y redirigir
+        
         setAskConfirm(false);
         finishAndGoHome();
     }
 
     function confirmNo() {
-        // No conforme → abrir modal de reclamo
+        
         setAskConfirm(false);
         setShowModal(true);
     }
@@ -118,9 +118,9 @@ export default function TrackingPage() {
         }
         try {
             await apiCreateComplaint({ orderId: Number(id), reason });
-            // Mensaje de contacto ficticio + cierre en 5s
-            setReason(''); // limpia
-            // podrías mostrar un toast; usamos el texto del modal abajo
+            
+            setReason(''); 
+            
             setTimeout(() => {
                 setShowModal(false);
                 finishAndGoHome();

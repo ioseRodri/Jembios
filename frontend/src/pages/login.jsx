@@ -1,10 +1,14 @@
-// src/pages/login.jsx
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { postJson } from "../services/http";
 import "../styles/auth.css";
+import { useUser } from "../store/user.jsx";
 
-export default function Login({ onLogin }) {
+export default function Login() {
+  
+  const { usuario, login } = useUser();
+
   const [nombre, setNombre] = useState("");
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
@@ -30,21 +34,23 @@ export default function Login({ onLogin }) {
         : { nombre, correo, password, rol: "Cliente" };
 
       const data = await postJson(url, payload);
-      const usuario = data.usuario || data;
+      const user = data.usuario || data; 
 
-      if (isLogin) {
-        localStorage.setItem("usuario", JSON.stringify(usuario));
-        onLogin?.(usuario);
-        setMensaje("✅ Inicio de sesión exitoso");
-        setTimeout(() => {
-          if (usuario.rol === "Administrador") navigate("/admin");
-          else if (usuario.rol === "Marketing") navigate("/marketing");
-          else navigate("/producto");
-        }, 600);
-      } else {
-        setMensaje("✅ Registro exitoso, ahora inicia sesión");
-        setIsLogin(true);
+      
+      login(user);
+
+      
+      if (user.rol === "Cliente") {
+        const savedCart = JSON.parse(localStorage.getItem(`cart_${user.id}`) || "[]");
+        localStorage.setItem("cart", JSON.stringify(savedCart));
       }
+
+      setMensaje("✅ Inicio de sesión exitoso");
+      setTimeout(() => {
+        if (user.rol === "Administrador") navigate("/admin");
+        else if (user.rol === "Marketing") navigate("/marketing");
+        else navigate("/productos");
+      }, 300);
     } catch (error) {
       setMensaje(
         error?.response?.data?.error ||
@@ -55,35 +61,34 @@ export default function Login({ onLogin }) {
   };
 
   useEffect(() => {
-    const usuario = JSON.parse(localStorage.getItem("usuario") || "null");
     if (usuario) {
       if (usuario.rol === "Administrador") navigate("/admin");
       else if (usuario.rol === "Marketing") navigate("/marketing");
-      else navigate("/producto");
+      else navigate("/productos");
     }
-  }, [navigate]);
+  }, [usuario, navigate]);
 
   return (
     <div className="auth-wrap">
       <div className="auth-card">
-        {/* FORM */}
         <div className="auth-form">
           <h2 className="auth-title">{isLogin ? "Iniciar sesión" : "Registrarse"}</h2>
           <form onSubmit={handleSubmit}>
             {!isLogin && (
               <div>
-                <label className="auth-label">Nombre:</label>
+                <label className="auth-label">Nombre Completo:</label>
                 <input
                   className="auth-input"
                   type="text"
                   name="nombre"
                   value={nombre}
                   onChange={handleInputChange}
-                  placeholder="Tu nombre"
+                  placeholder="Tu nombre completo"
                   required
                 />
               </div>
             )}
+
             <div>
               <label className="auth-label">Correo electrónico:</label>
               <input
@@ -96,6 +101,7 @@ export default function Login({ onLogin }) {
                 required
               />
             </div>
+
             <div>
               <label className="auth-label">Contraseña:</label>
               <input
@@ -130,13 +136,9 @@ export default function Login({ onLogin }) {
           {mensaje && <div className="auth-msg">{mensaje}</div>}
         </div>
 
-        {/* HERO */}
         <div className="auth-hero">
           <h2>¡Bienvenido a Jembios!</h2>
-          <p>
-            Tu farmacia digital de confianza 💊. Encuentra tus productos médicos y
-            controla tus pedidos fácilmente.
-          </p>
+          <p>Tu farmacia digital de confianza 💊. Encuentra tus productos médicos y controla tus pedidos fácilmente.</p>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const db = require('../db/connect');
-const { getDistance } = require('geolib'); // 👈 NUEVO
+const { getDistance } = require('geolib'); 
 const router = Router();
 
 /**
@@ -25,9 +25,9 @@ router.post('/quote', (req, res) => {
     return res.status(400).json({ error: 'items es requerido y no puede estar vacío' });
   }
 
-  // === MODO B: Por ubicación (mapa) ===
+  
   if (location && typeof location.latitude === 'number' && typeof location.longitude === 'number') {
-    // Calcula peso total (por si quieres sumar recargo por peso en el futuro)
+    
     const ids = items.map(it => it.productId);
     const placeholders = ids.map(() => '?').join(',');
     db.all(`SELECT id, weight FROM products WHERE id IN (${placeholders})`, ids, (err2, prods) => {
@@ -46,9 +46,9 @@ router.post('/quote', (req, res) => {
       const distMeters = getDistance(ORIGIN, { latitude: location.latitude, longitude: location.longitude });
       const distKm = distMeters / 1000;
 
-      // Regla simple demo
-      const base = 5;    // S/ 5 base
-      const perKm = 1.5; // S/ 1.5 por km
+      
+      const base = 5;    
+      const perKm = 1.5; 
       const cost = Number((base + perKm * distKm).toFixed(2));
 
       return res.json({
@@ -63,7 +63,7 @@ router.post('/quote', (req, res) => {
     return;
   }
 
-  // === MODO A: Por distrito (fallback/compat) ===
+  
   if (!district) {
     return res.status(400).json({ error: 'district o location son requeridos' });
   }

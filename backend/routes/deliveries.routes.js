@@ -2,7 +2,7 @@ const { Router } = require('express');
 const db = require('../db/connect');
 const router = Router();
 
-// helper simple para tracking
+
 function genTracking() {
   const base = Math.random().toString(36).slice(2, 8).toUpperCase();
   const stamp = Date.now().toString().slice(-4);
@@ -20,7 +20,7 @@ router.post('/', async (req, res) => {
   if (!orderId) return res.status(400).json({ error: 'orderId es requerido' });
 
   try {
-    // valida orden
+    
     const order = await new Promise((resolve, reject) => {
       db.get(`SELECT id, status FROM orders WHERE id = ?`, [orderId], (err, row) =>
         err ? reject(err) : resolve(row)
@@ -31,7 +31,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: `La orden debe estar 'paid' (actual: '${order.status}')` });
     }
 
-    // opcional: evita duplicados (si ya existe un delivery asociado)
+    
     const existing = await new Promise((resolve, reject) => {
       db.get(`SELECT id FROM deliveries WHERE order_id = ?`, [orderId], (err, row) =>
         err ? reject(err) : resolve(row)
@@ -43,7 +43,7 @@ router.post('/', async (req, res) => {
 
     const tracking = genTracking();
 
-    // crea delivery
+    
     const deliveryId = await new Promise((resolve, reject) => {
       db.run(
         `INSERT INTO deliveries (order_id, status, tracking_code, carrier, updated_at)
@@ -56,8 +56,8 @@ router.post('/', async (req, res) => {
       );
     });
 
-    // (opcional) puedes poner orders.status = 'fulfilling' o 'shipped' aquí.
-    // En esta demo lo dejamos en 'paid' hasta que pase a 'en_route'.
+    
+    
 
     res.status(201).json({ id: deliveryId, order_id: orderId, status: 'created', tracking_code: tracking, carrier: carrier || null });
   } catch (err) {
@@ -118,7 +118,7 @@ router.patch('/:id', async (req, res) => {
     });
     if (!delivery) return res.status(404).json({ error: 'Delivery no encontrado' });
 
-    // valida transición
+    
     const from = delivery.status;
     const valid =
       (from === 'created' && status === 'en_route') ||
@@ -128,7 +128,7 @@ router.patch('/:id', async (req, res) => {
       return res.status(400).json({ error: `Transición inválida: ${from} -> ${status}` });
     }
 
-    // transacción de update
+    
     await new Promise((resolve, reject) => db.run('BEGIN', (err) => (err ? reject(err) : resolve())));
 
     await new Promise((resolve, reject) => {
@@ -140,7 +140,7 @@ router.patch('/:id', async (req, res) => {
     });
 
     if (status === 'en_route') {
-      // opcional: marcar la orden como 'shipped'
+      
       await new Promise((resolve, reject) => {
         db.run(
           `UPDATE orders SET status = 'shipped' WHERE id = ?`,

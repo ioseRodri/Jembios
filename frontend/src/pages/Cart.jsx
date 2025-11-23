@@ -5,21 +5,21 @@ import { apiQuoteShipping, apiValidateCoupon } from '../services/api';
 import './Cart.css';
 
 
-// Leaflet imports
+
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 
-// Corrige íconos por defecto
+
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 const DefaultIcon = L.icon({ iconUrl, shadowUrl: iconShadow, iconAnchor: [12, 41] });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Coordenadas aproximadas de Jembios (Carabayllo)
+
 const ORIGIN = [-11.9523, -77.0394];
 
-// Componente para seleccionar ubicación
+
 function LocationPicker({ onSelect }) {
   const [marker, setMarker] = useState(null);
   useMapEvents({
@@ -38,9 +38,9 @@ export default function CartPage() {
   const nav = useNavigate();
   const { items, setQty, remove, subtotal } = useCart();
 
-  // NUEVO: estado de ubicación y modo de cálculo
+  
   const [district, setDistrict] = useState('Lima Centro');
-  const [location, setLocation] = useState(null); // ubicación { latitude, longitude }
+  const [location, setLocation] = useState(null); 
   const [ship, setShip] = useState(null);
   const [shipErr, setShipErr] = useState('');
   const [coupon, setCoupon] = useState('');
@@ -85,13 +85,34 @@ export default function CartPage() {
   }
 
   if (items.length === 0) {
-    return (
-      <div style={{ padding: 16 }}>
-        <div>Tu carrito está vacío.</div>
-        <Link to="/productos">Volver al catálogo</Link>
-      </div>
-    );
-  }
+  return (
+    <div className="cart-container" style={{ textAlign: 'center', padding: '40px 16px' }}>
+      <h2>Tu carrito está vacío</h2>
+      <p style={{ margin: '20px 0', fontSize: 18, color: '#555' }}>
+        Parece que no has añadido ningún producto aún.
+      </p>
+      <Link
+        to="/productos"
+        style={{
+          display: 'inline-block',
+          backgroundColor: '#00a651',
+          color: 'white',
+          padding: '10px 24px',
+          borderRadius: 6,
+          textDecoration: 'none',
+          fontWeight: '600',
+          fontSize: 16,
+          transition: 'background-color 0.3s',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#00904d')}
+        onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#00a651')}
+      >
+        Volver al catálogo
+      </Link>
+    </div>
+  );
+}
+
 
   return (
 

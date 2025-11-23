@@ -1,0 +1,184 @@
+/* ==== HERO ==== */
+.nosotros-section {
+  font-family: "Poppins", sans-serif;
+  color: #1a1a1a;
+}
+
+.nosotros-hero {
+  position: relative;
+  width: 100%;
+  height: 70vh;
+  overflow: hidden;
+}
+
+.nosotros-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nosotros-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom right, rgba(0, 40, 120, 0.8), rgba(0, 40, 120, 0.5));
+  z-index: 1;
+}
+
+.nosotros-hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  color: white;
+  padding-top: 8%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.nosotros-hero-content h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.nosotros-hero-content .nosotros-top {
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.9;
+  margin-bottom: 0.8rem;
+}
+
+/* ==== CARDS ==== */
+.nosotros-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3.20rem;
+  margin-right: 10px;
+  margin-top: -4rem;
+  padding: 0 2rem 4rem;
+  position: relative;
+  z-index: 3;
+}
+
+.flip-card {
+  background: transparent;
+  width: 200px;
+  height: 160px;
+  perspective: 1000px;
+}
+
+.flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.8s;
+  transform-style: preserve-3d;
+}
+
+.flip-card:hover .flip-inner {
+  transform: rotateY(180deg);
+}
+
+.flip-front, .flip-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-weight: 600;
+  text-align: center;
+  padding: 1rem;
+}
+
+.flip-front {
+  background: #5ab5f3;
+  font-size: 0.9rem;
+}
+
+.flip-back {
+  background: #004aad;
+  transform: rotateY(180deg);
+  font-size: 0.85rem;
+  line-height: 1.3rem;
+}
+
+.flip-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ==== INFORMACIÓN ==== */
+.nosotros-info-container {
+  background: #f4f7ff;
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+@media (min-width: 900px) {
+  .nosotros-info-container {
+    flex-direction: row;
+    justify-content: center;
+    gap: 3rem;
+  }
+}
+
+.nosotros-info-left {
+  background: white;
+  padding: 2rem;
+  border-radius: 22px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  flex: 1;
+}
+
+.nosotros-info-left h3 {
+  color: #004aad;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.nosotros-info-left h3 span {
+  color: #1e90ff;
+}
+
+.nosotros-info-left h2 {
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+}
+
+.nosotros-info-left p {
+  font-size: 0.95rem;
+  color: #333;
+  margin-bottom: 0.8rem;
+  line-height: 1.5;
+}
+
+.nosotros-info-right {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex: 0.8;
+}
+
+.info-box {
+  background: white;
+  border-radius: 22px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.info-box h4 {
+  color: #004aad;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}

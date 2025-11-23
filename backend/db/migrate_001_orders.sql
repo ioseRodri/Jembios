@@ -28,5 +28,33 @@ CREATE TABLE IF NOT EXISTS order_items (
   FOREIGN KEY(product_id) REFERENCES products(id)
 );
 
+-- Al final de tu script de inicialización:
+
+-- FACTURAS / PAGOS REALIZADOS
+CREATE TABLE IF NOT EXISTS invoices (
+  id_invoice INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  order_id INTEGER NOT NULL,
+  total_amount REAL NOT NULL,
+  status TEXT NOT NULL DEFAULT 'paid',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY(user_id) REFERENCES usuarios(id_usuario),
+  FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS invoice_items (
+  id_item INTEGER PRIMARY KEY AUTOINCREMENT,
+  invoice_id INTEGER NOT NULL,
+  product_id INTEGER NOT NULL,
+  product_name TEXT,
+  unit_price REAL NOT NULL,
+  quantity INTEGER NOT NULL,
+  FOREIGN KEY(invoice_id) REFERENCES invoices(id_invoice) ON DELETE CASCADE,
+  FOREIGN KEY(product_id) REFERENCES productos(id_producto)
+);
+
+CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice ON invoice_items(invoice_id);
+
 -- Índices útiles
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
