@@ -91,7 +91,17 @@ export default function Admin() {
     setOrdersErr("");
     try {
       const rows = await http.get("/api/orders").then(r => r.data);
-      setOrders(rows);
+      
+      const enhanced = await Promise.all(rows.map(async (o) => {
+        try {
+          const details = await http.get(`/api/orders/${o.id}`).then(r => r.data);
+          return { ...o, total_amount: details.order?.total_amount };
+        } catch (err) {
+          console.error(err);
+          return { ...o, total_amount: 0 };
+        }
+      }));
+      setOrders(enhanced);
     } catch (e) {
       setOrdersErr("Error cargando órdenes");
       console.error(e);
