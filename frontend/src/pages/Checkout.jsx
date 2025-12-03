@@ -23,6 +23,8 @@ export default function CheckoutPage() {
     city: usuario?.city || 'Lima',
   });
 
+  //a
+  
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
 
