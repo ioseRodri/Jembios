@@ -3,20 +3,22 @@ import { apiGetProducts } from '../services/api';
 import { useCart } from '../store/cart';
 import './Home.css';
 
+// In this component we list products for sale and a separate list for
+// marketing-approved "Maquinaria Certificada" items.  Only active products
+// should appear in the "Todos los productos" section.  Products with
+// `active` set to 0 or false will be filtered out when the data is
+// loaded.
+
 export default function Home() {
   const { add } = useCart();
 
   const [products, setProducts] = useState([]);
   const [filtered, setFiltered] = useState([]);
-
   const [approved, setApproved] = useState([]);
   const [filteredApproved, setFilteredApproved] = useState([]);
-
   const [categories, setCategories] = useState([]);
   const [selectedCats, setSelectedCats] = useState([]);
   const [search, setSearch] = useState('');
-
-  
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   function openDetails(p) {
@@ -27,68 +29,63 @@ export default function Home() {
     setSelectedProduct(null);
   }
 
-
   useEffect(() => {
     (async () => {
-      
+      // Fetch all products from the API.  We exclude the marketing section
+      // (Maquinaria Certificada) here and only keep active products.  A
+      // product is considered active if its `active` field is truthy (1/true).
       const data = await apiGetProducts();
-
-      const normalProducts = data.filter(p => p.category !== 'Maquinaria Certificada');
+      const normalProducts = data.filter(
+        (p) => p.category !== 'Maquinaria Certificada' && (p.active === 1 || p.active === true)
+      );
       setProducts(normalProducts);
       setFiltered(normalProducts);
 
-      
+      // Fetch marketing-approved products (these have their own API).  We
+      // assume all approved items are valid regardless of the `active` field
+      // because they are managed by a separate workflow.
       const approvedData = await fetch('http://localhost:5000/api/marketing/productos/aprobados');
       const approvedProducts = await approvedData.json();
-
-      
       setApproved(approvedProducts);
       setFilteredApproved(approvedProducts);
 
-      
-      const uniqueCats = [...new Set(normalProducts.map(p => p.category))];
+      // Build category filters based only on active products.
+      const uniqueCats = [...new Set(normalProducts.map((p) => p.category))];
       setCategories(uniqueCats);
     })();
   }, []);
 
-
   useEffect(() => {
+    // Filter active products based on selected categories and search term.
     let result = products;
     if (selectedCats.length > 0) {
-      result = result.filter(p => selectedCats.includes(p.category));
+      result = result.filter((p) => selectedCats.includes(p.category));
     }
     if (search.trim()) {
-      result = result.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase())
-      );
+      result = result.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
     }
     setFiltered(result);
 
+    // Apply search filtering to approved marketing products.  Do not apply
+    // category filtering here because all marketing products belong to the
+    // "Maquinaria Certificada" section.
     let approvedResult = approved;
     if (search.trim()) {
-      approvedResult = approvedResult.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase())
-      );
+      approvedResult = approvedResult.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
     }
     setFilteredApproved(approvedResult);
   }, [search, selectedCats, products, approved]);
 
   function toggleCat(cat) {
-    setSelectedCats(prev =>
-      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
-    );
+    setSelectedCats((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]));
   }
 
   const getImageUrl = (p) => {
-    
     if (p.imagen_url?.startsWith('http')) return p.imagen_url;
-
-    
     if (p.imagen_url) return `http://localhost:5000/uploads/${p.imagen_url}`;
-
-    
     return `https://via.placeholder.com/250x200?text=${encodeURIComponent(p.name)}`;
   };
+
   return (
     <div className="page-container">
       <aside className="sidebar">
@@ -96,11 +93,11 @@ export default function Home() {
           type="text"
           placeholder="Buscar productos..."
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
           className="search-box"
         />
         <div className="filter-section">
-          {categories.map(cat => (
+          {categories.map((cat) => (
             <label key={cat} className="filter-item">
               <input
                 type="checkbox"
@@ -119,16 +116,11 @@ export default function Home() {
           <p>No hay productos disponibles.</p>
         ) : (
           <div className="product-grid">
-            {filtered.map(p => (
+            {filtered.map((p) => (
               <div key={p.id} className="product-card">
-                <img
-                  src={getImageUrl(p)}
-                  alt={p.name}
-                  className="product-img"
-                />
+                <img src={getImageUrl(p)} alt={p.name} className="product-img" />
                 <h3 className="product-name">{p.name}</h3>
                 <p className="product-cat">{p.category}</p>
-
                 <button
                   className="add-btn"
                   style={{ background: '#fff', color: '#1e3a8a', border: '1px solid #1e3a8a', marginBottom: 6 }}
@@ -136,17 +128,16 @@ export default function Home() {
                 >
                   Descripción
                 </button>
-
                 <button
                   className="add-btn"
                   onClick={() => add(p, 1)}
-                  disabled={p.stock <= 0}
+                  // Disable if out of stock or product is inactive (for extra safety)
+                  disabled={p.stock <= 0 || !p.active}
                 >
                   Agregar al carrito
                 </button>
               </div>
             ))}
-
           </div>
         )}
 
@@ -155,117 +146,106 @@ export default function Home() {
           <p>No hay productos aprobados disponibles.</p>
         ) : (
           <div className="product-grid">
-            {filteredApproved.map(p => (
+            {filteredApproved.map((p) => (
               <div key={p.id} className="product-card">
-                <img
-                  src={getImageUrl(p)}
-                  alt={p.name}
-                  className="product-img"
-                />
+                <img src={getImageUrl(p)} alt={p.name} className="product-img" />
                 <h3 className="product-name">{p.name}</h3>
                 <p className="product-cat">{p.category}</p>
-
-
                 <button
                   className="add-btn"
-                  style={{ background: '#fff', color: '#1e3a8a', border: '1px solid #1e3a8a', marginBottom: 6 }}
+                  style={{
+                    background: '#fff',
+                    color: '#1e3a8a',
+                    border: '1px solid #1e3a8a',
+                    marginBottom: 6,
+                  }}
                   onClick={() => openDetails(p)}
                 >
                   Descripción
                 </button>
-
-                
+                {/* Marketing products do not have an "Agregar al carrito" button */}
               </div>
             ))}
           </div>
         )}
 
-
         {selectedProduct && (
-  <div
-    onClick={closeDetails}
-    style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.45)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}
-  >
-    <div
-      onClick={(e) => e.stopPropagation()}
-      style={{
-        width: 'min(720px, 92vw)',
-        maxHeight: '86vh',
-        overflow: 'auto',
-        background: '#fff',
-        borderRadius: 12,
-        boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-        padding: 18
-      }}
-    >
-      <div style={{ display: 'flex', gap: 16 }}>
-        <img
-          src={getImageUrl(selectedProduct)}
-          alt={selectedProduct.name}
-          style={{ width: 220, height: 180, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
-        />
-        <div style={{ flex: 1 }}>
-          <h3 style={{ margin: '0 0 6px' }}>{selectedProduct.name}</h3>
-          <div style={{ color: '#4b5563', marginBottom: 8 }}>
-            {selectedProduct.category}
+          <div
+            onClick={closeDetails}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: 'min(720px, 92vw)',
+                maxHeight: '86vh',
+                overflow: 'auto',
+                background: '#fff',
+                borderRadius: 12,
+                boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                padding: 18,
+              }}
+            >
+              <div style={{ display: 'flex', gap: 16 }}>
+                <img
+                  src={getImageUrl(selectedProduct)}
+                  alt={selectedProduct.name}
+                  style={{ width: 220, height: 180, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
+                />
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ margin: '0 0 6px' }}>{selectedProduct.name}</h3>
+                  <div style={{ color: '#4b5563', marginBottom: 8 }}>{selectedProduct.category}</div>
+                  {/* Only show description for marketing products */}
+                  {selectedProduct.estado === 'aprobado' && (
+                    <div style={{ marginBottom: 10 }}>
+                      <b>Descripción:</b>
+                      <div style={{ color: '#374151' }}>{selectedProduct.descripcion || 'Sin descripción disponible.'}</div>
+                    </div>
+                  )}
+                  {/* Show details for normal products */}
+                  {selectedProduct.estado !== 'aprobado' && (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                        <div>
+                          <b>Precio:</b> {selectedProduct.price != null ? `S/ ${Number(selectedProduct.price).toFixed(2)}` : '—'}
+                        </div>
+                        <div>
+                          <b>Stock:</b> {selectedProduct.stock ?? '—'}
+                        </div>
+                        <div>
+                          <b>Peso:</b> {selectedProduct.weight != null ? `${selectedProduct.weight} kg` : '—'}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {/* Optional: display active ingredient for pharmaceuticals */}
+                  {selectedProduct.principio_activo && (
+                    <div style={{ marginTop: 6 }}>
+                      <b>Principio activo:</b> {selectedProduct.principio_activo}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                <button
+                  onClick={closeDetails}
+                  className="add-btn"
+                  style={{ background: '#fff', color: '#1e3a8a', border: '1px solid #1e3a8a' }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
           </div>
-
-          {/* Mostrar solo la descripción para Maquinaria Certificada */}
-          {selectedProduct.estado === 'aprobado' && (
-            <div style={{ marginBottom: 10 }}>
-              <b>Descripción:</b>
-              <div style={{ color: '#374151' }}>
-                {selectedProduct.descripcion || 'Sin descripción disponible.'}
-              </div>
-            </div>
-          )}
-
-          {/* Mostrar todos los detalles para otros productos (Todos los productos) */}
-          {selectedProduct.estado !== 'aprobado' && (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-                <div><b>Precio:</b> {selectedProduct.price != null ? `S/ ${Number(selectedProduct.price).toFixed(2)}` : '—'}</div>
-                <div><b>Stock:</b> {selectedProduct.stock ?? '—'}</div>
-                <div><b>Peso:</b> {selectedProduct.weight != null ? `${selectedProduct.weight} kg` : '—'}</div>
-                
-              </div>
-            </>
-          )}
-
-          {/* Si el producto tiene principio activo, mostrarlo */}
-          {selectedProduct.principio_activo && (
-            <div style={{ marginTop: 6 }}>
-              <b>Principio activo:</b> {selectedProduct.principio_activo}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-        
-        <button
-          onClick={closeDetails}
-          className="add-btn"
-          style={{ background: '#fff', color: '#1e3a8a', border: '1px solid #1e3a8a' }}
-        >
-          Cerrar
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-
-
-
+        )}
       </main>
     </div>
   );

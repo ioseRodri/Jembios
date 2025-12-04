@@ -26,6 +26,7 @@ export default function Admin() {
   const [view, setView] = useState("pendientes");
   const [toast, setToast] = useState("");
 
+  // Estados para productos pendientes
   const [pendientes, setPendientes] = useState([]);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -35,19 +36,24 @@ export default function Admin() {
   const [active, setActive] = useState(true);
   const [imagen, setImagen] = useState(null);
 
+  // Estados para productos registrados
   const [prodList, setProdList] = useState([]);
   const [prodLoading, setProdLoading] = useState(false);
 
+  // Estados para órdenes
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersErr, setOrdersErr] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  // Estados para detalle de orden
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailData, setDetailData] = useState(null);
 
+  // Modal para gráficas
   const [showGraphModal, setShowGraphModal] = useState(false);
 
+  // Formatear fecha y hora
   const fmtLima = (value) => {
     if (!value) return "—";
     const asIso = value.includes("T") ? value : value.replace(" ", "T") + "Z";
@@ -59,11 +65,45 @@ export default function Admin() {
     }).format(d);
   };
 
+  /**
+   * Desactiva productos con stock 0.
+   * Recorre la lista de productos y envía un PATCH para aquellos con stock 0 y active === true.
+   * Devuelve una nueva lista de productos con el cambio reflejado localmente.
+   */
+  const markInactiveIfNoStock = async (rows) => {
+    const toDeactivate = rows.filter(
+      (p) => Number(p.stock || 0) === 0 && p.active
+    );
+    if (toDeactivate.length > 0) {
+      try {
+        await Promise.all(
+          toDeactivate.map((p) =>
+            http.patch(`/api/products/${p.id}`, { active: 0 })
+          )
+        );
+        return rows.map((p) =>
+          toDeactivate.some((d) => d.id === p.id)
+            ? { ...p, active: 0 }
+            : p
+        );
+      } catch (err) {
+        console.error("Error actualizando estado de productos sin stock:", err);
+        setToast("Error al actualizar estado de productos sin stock");
+      }
+    }
+    return rows;
+  };
+
+  /**
+   * Carga la lista de productos desde la API.
+   * Tras obtener la lista, se verifica si algún producto debe ser marcado como inactivo.
+   */
   const fetchProducts = async () => {
     setProdLoading(true);
     try {
       const rows = await http.get("/api/products").then((r) => r.data);
-      setProdList(rows);
+      const updatedRows = await markInactiveIfNoStock(rows);
+      setProdList(updatedRows);
     } catch (e) {
       setToast("Error cargando productos");
       console.error(e);
@@ -72,6 +112,9 @@ export default function Admin() {
     }
   };
 
+  /**
+   * Elimina un producto de la base de datos previo confirmación.
+   */
   const deleteProduct = async (id) => {
     const ok = window.confirm(
       `¿Eliminar el producto #${id}? Esta acción es permanente.`
@@ -90,6 +133,42 @@ export default function Admin() {
     }
   };
 
+  /**
+   * Permite incrementar el stock de un producto.
+   * Solicita al usuario la cantidad a agregar, calcula el nuevo stock y actualiza el registro.
+   * Si el stock resultante es 0 o negativo, se marca el producto como inactivo.
+   */
+  const increaseStock = async (product) => {
+    const nombre = product.name || product.nombre || "producto";
+    const amountStr = window.prompt(
+      `¿Cuánto stock agregar a ${nombre}?`,
+      "1"
+    );
+    if (amountStr === null) return;
+    const amount = Number(amountStr);
+    if (isNaN(amount) || amount <= 0) {
+      setToast("Cantidad inválida");
+      return;
+    }
+    const currentStock = Number(product.stock || 0);
+    const newStock = currentStock + amount;
+    const newActive = newStock > 0;
+    try {
+      await http.patch(`/api/products/${product.id}`, {
+        stock: newStock,
+        active: newActive ? 1 : 0,
+      });
+      setToast("Stock actualizado correctamente");
+      await fetchProducts();
+    } catch (err) {
+      console.error("Error al aumentar stock:", err);
+      setToast("Error al actualizar stock");
+    }
+  };
+
+  /**
+   * Carga la lista de órdenes y las enriquece con el total_amount de cada una.
+   */
   const fetchOrders = async () => {
     setOrdersLoading(true);
     setOrdersErr("");
@@ -118,6 +197,9 @@ export default function Admin() {
     }
   };
 
+  /**
+   * Abre el detalle de una orden específica.
+   */
   const openOrderDetail = async (id) => {
     try {
       const data = await http.get(`/api/orders/${id}`).then((r) => r.data);
@@ -131,10 +213,16 @@ export default function Admin() {
     }
   };
 
+  /**
+   * Cierra el panel de detalle de orden.
+   */
   const closeOrderDetail = () => {
     setDetailOpen(false);
   };
 
+  /**
+   * Carga productos pendientes de aprobación.
+   */
   const fetchPendientes = async () => {
     try {
       const res = await getJson("/api/marketing/productos/pendientes");
@@ -144,6 +232,9 @@ export default function Admin() {
     }
   };
 
+  /**
+   * Aprueba un producto pendiente.
+   */
   const aprobarProducto = async (id) => {
     try {
       await patchJson(`/api/marketing/productos/${id}/aprobar`, {});
@@ -155,6 +246,9 @@ export default function Admin() {
     }
   };
 
+  /**
+   * Rechaza un producto pendiente.
+   */
   const rechazarProducto = async (id) => {
     try {
       await patchJson(`/api/marketing/productos/${id}/rechazar`, {});
@@ -166,6 +260,9 @@ export default function Admin() {
     }
   };
 
+  /**
+   * Envía el formulario para registrar un nuevo producto.
+   */
   const handleSubmitProducto = async (e) => {
     e.preventDefault();
     try {
@@ -197,11 +294,15 @@ export default function Admin() {
     }
   };
 
+  // Estados para empleados
   const [empList, setEmpList] = useState([]);
   const [empName, setEmpName] = useState("");
   const [empRole, setEmpRole] = useState("Almacén");
   const [empStatus, setEmpStatus] = useState(true);
 
+  /**
+   * Carga la lista de empleados.
+   */
   const fetchEmployees = async () => {
     try {
       const rows = await http.get("/api/employees").then((r) => r.data);
@@ -212,6 +313,9 @@ export default function Admin() {
     }
   };
 
+  /**
+   * Crea un nuevo empleado.
+   */
   const createEmployee = async (e) => {
     e.preventDefault();
     if (!empName.trim() || !empRole.trim()) return;
@@ -232,6 +336,9 @@ export default function Admin() {
     }
   };
 
+  /**
+   * Cambia el estado de un empleado entre ACTIVO e INACTIVO.
+   */
   const toggleEmployeeStatus = async (emp) => {
     try {
       const next = emp.status === "ACTIVO" ? "INACTIVO" : "ACTIVO";
@@ -244,6 +351,7 @@ export default function Admin() {
     }
   };
 
+  // Estados y funciones para tareas
   const [taskEmployees, setTaskEmployees] = useState([]);
   const [taskOrders, setTaskOrders] = useState([]);
   const [taskList, setTaskList] = useState([]);
@@ -251,6 +359,9 @@ export default function Admin() {
   const [selOrderId, setSelOrderId] = useState("");
   const [selType, setSelType] = useState("Empaquetado");
 
+  /**
+   * Carga empleados, órdenes y tareas para la vista de asignación de tareas.
+   */
   const fetchTasksData = async () => {
     try {
       const [emps, orders, tasks] = await Promise.all([
@@ -288,6 +399,21 @@ export default function Admin() {
     }
   };
 
+  const busyEmpIds = useMemo(() => {
+    return new Set(
+      taskList
+        .filter((t) => {
+          const status = String(t.status || "").toLowerCase();
+          const type = String(t.type || "").toLowerCase();
+          return t.assignee_id && status !== "done" && type !== "picking";
+        })
+        .map((t) => Number(t.assignee_id))
+    );
+  }, [taskList]);
+
+  /**
+   * Crea una nueva tarea para un empleado y una orden.
+   */
   const createTask = async (e) => {
     e.preventDefault();
     const employeeIdNum = Number(selEmployeeId);
@@ -329,6 +455,9 @@ export default function Admin() {
     }
   };
 
+  /**
+   * Marca una tarea como CUMPLIDO.
+   */
   const completeTask = async (id) => {
     try {
       await http.patch(`/api/tasks/${id}/complete`);
@@ -340,37 +469,40 @@ export default function Admin() {
     }
   };
 
+  /**
+   * Exporta la lista de órdenes a un archivo CSV descargable.
+   */
   const exportOrdersToCSV = () => {
-  if (orders.length === 0) {
-    setToast("No hay órdenes para exportar");
-    return;
-  }
+    if (orders.length === 0) {
+      setToast("No hay órdenes para exportar");
+      return;
+    }
 
-  const headers = ["ID", "Cliente", "Estado", "Fecha", "Total"];
-  const rows = orders.map(order => [
-    order.id,
-    order.name || order.customer_name || "—",
-    order.status,
-    fmtLima(order.created_at),
-    Number(order.total_amount || 0).toFixed(2)
-  ]);
+    const headers = ["ID", "Cliente", "Estado", "Fecha", "Total"];
+    const rows = orders.map((order) => [
+      order.id,
+      order.name || order.customer_name || "—",
+      order.status,
+      fmtLima(order.created_at),
+      Number(order.total_amount || 0).toFixed(2),
+    ]);
 
-  const csvContent = [
-    headers.join(","),
-    ...rows.map(row => row.join(","))
-  ].join("\n");
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.join(",")),
+    ].join("\n");
 
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  link.setAttribute("href", url);
-  link.setAttribute("download", "ordenes.csv");
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "ordenes.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
-
+  // Efectos para cargar datos en función de la vista actual
   useEffect(() => {
     if (view === "productos") fetchProducts();
     if (view === "ordenes") fetchOrders();
@@ -397,18 +529,7 @@ export default function Admin() {
 
   const uploadsBase = `${http.defaults.baseURL}/uploads/`;
 
-  const busyEmpIds = useMemo(() => {
-    return new Set(
-      taskList
-        .filter((t) => {
-          const status = String(t.status || "").toLowerCase();
-          const type = String(t.type || "").toLowerCase();
-          return t.assignee_id && status !== "done" && type !== "picking";
-        })
-        .map((t) => Number(t.assignee_id))
-    );
-  }, [taskList]);
-
+  // Datos para gráficas de órdenes
   const graphData = useMemo(() => {
     const counts = {};
     const totals = {};
@@ -447,7 +568,7 @@ export default function Admin() {
       <aside className="admin-side">
         <h2>Administrador</h2>
 
-        <button className="side-btn" onClick={() => setView("pendientes")}>
+        <button className="side-btn" onClick={() => setView("pendientes")}> 
           Productos para alta
         </button>
         <button className="side-btn" onClick={() => setView("form")}>
@@ -455,20 +576,20 @@ export default function Admin() {
         </button>
         <hr style={{ margin: "12px 0", opacity: 0.3 }} />
 
-        <button className="side-btn" onClick={() => setView("empleados")}>
+        <button className="side-btn" onClick={() => setView("empleados")}> 
           Registrar empleados
         </button>
 
-        <button className="side-btn" onClick={() => setView("tareas")}>
+        <button className="side-btn" onClick={() => setView("tareas")}> 
           Asignar tareas
         </button>
-        <button className="side-btn" onClick={() => setView("historial")}>
+        <button className="side-btn" onClick={() => setView("historial")}> 
           Historial de tareas
         </button>
-        <button className="side-btn" onClick={() => setView("productos")}>
+        <button className="side-btn" onClick={() => setView("productos")}> 
           Productos registrados
         </button>
-        <button className="side-btn" onClick={() => setView("ordenes")}>
+        <button className="side-btn" onClick={() => setView("ordenes")}> 
           Historial de órdenes
         </button>
       </aside>
@@ -499,8 +620,7 @@ export default function Admin() {
                         <strong>Categoría:</strong> {p.categoria}
                       </p>
                       <p className="admin-price">
-                        <strong>Precio:</strong> S/{" "}
-                        {Number(p.precio).toFixed(2)}
+                        <strong>Precio:</strong> S/ {Number(p.precio).toFixed(2)}
                       </p>
                     </div>
                     {p.imagen_url && (
@@ -689,9 +809,7 @@ export default function Admin() {
                         <td>
                           <span
                             className={`badge ${
-                              e.status === "ACTIVO"
-                                ? "badge-green"
-                                : "badge-gray"
+                              e.status === "ACTIVO" ? "badge-green" : "badge-gray"
                             }`}
                           >
                             {e.status}
@@ -957,6 +1075,14 @@ export default function Admin() {
                         </td>
                         <td>
                           <button
+                            className="btn-approve"
+                            onClick={() => increaseStock(p)}
+                            title="Aumentar stock"
+                            style={{ marginRight: 8 }}
+                          >
+                            + Stock
+                          </button>
+                          <button
                             className="btn-reject"
                             onClick={() => deleteProduct(p.id)}
                             title="Eliminar producto"
@@ -1133,26 +1259,16 @@ export default function Admin() {
                           <b>Estado:</b> {detailData?.order?.status}
                         </div>
                         <div>
-                          <b>Subtotal:</b> S/{" "}
-                          {Number(detailData?.order?.subtotal || 0).toFixed(2)}
+                          <b>Subtotal:</b> S/ {Number(detailData?.order?.subtotal || 0).toFixed(2)}
                         </div>
                         <div>
-                          <b>Envío:</b> S/{" "}
-                          {Number(
-                            detailData?.order?.shipping_cost || 0
-                          ).toFixed(2)}
+                          <b>Envío:</b> S/ {Number(detailData?.order?.shipping_cost || 0).toFixed(2)}
                         </div>
                         <div>
-                          <b>Descuento:</b> S/{" "}
-                          {Number(
-                            detailData?.order?.discount_total || 0
-                          ).toFixed(2)}
+                          <b>Descuento:</b> S/ {Number(detailData?.order?.discount_total || 0).toFixed(2)}
                         </div>
                         <div>
-                          <b>Total:</b> S/{" "}
-                          {Number(detailData?.order?.total_amount || 0).toFixed(
-                            2
-                          )}
+                          <b>Total:</b> S/ {Number(detailData?.order?.total_amount || 0).toFixed(2)}
                         </div>
                         {detailData?.order?.created_at && (
                           <div>
@@ -1180,16 +1296,13 @@ export default function Admin() {
                             <tbody>
                               {detailData.items.map((it) => (
                                 <tr key={it.id}>
-                                  <td>
-                                    {it.name ||
-                                      it.product_name ||
-                                      it.product_id}
-                                  </td>
+                                  <td>{it.name || it.product_name || it.product_id}</td>
                                   <td>{it.qty}</td>
-                                  <td>S/ {Number(it.unit_price).toFixed(2)}</td>
                                   <td>
-                                    S/{" "}
-                                    {Number(it.unit_price * it.qty).toFixed(2)}
+                                    S/ {Number(it.unit_price).toFixed(2)}
+                                  </td>
+                                  <td>
+                                    S/ {Number(it.unit_price * it.qty).toFixed(2)}
                                   </td>
                                 </tr>
                               ))}
